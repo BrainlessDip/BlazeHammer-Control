@@ -58,13 +58,17 @@ export function normalizeBackendUrl(input: string): string {
     )
   }
 
-  // Normalize: force http://, strip trailing slashes, strip default ports
-  url.protocol = "http:"
+  // Normalize: preserve protocol, strip trailing slashes, strip default ports
+  const isHttps = url.protocol === "https:"
   let normalized = url.origin + url.pathname
   normalized = normalized.replace(/\/+$/, "")
 
-  // Strip default port (80 for http)
-  normalized = normalized.replace(/:80$/, "")
+  // Strip default port (80 for http, 443 for https)
+  if (isHttps) {
+    normalized = normalized.replace(/:443$/, "")
+  } else {
+    normalized = normalized.replace(/:80$/, "")
+  }
 
   return normalized
 }

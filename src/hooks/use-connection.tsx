@@ -57,6 +57,8 @@ export interface ConnectionContextValue {
   isInitializing: boolean
   /** Whether we're connected (status === "connected"). */
   isConnected: boolean
+  /** Whether a URL was successfully tested (but not yet connected). */
+  isTested: boolean
 
   /** Test a candidate backend URL. */
   testConnection(url: string): Promise<ConnectionTestResult>
@@ -100,6 +102,7 @@ export function ConnectionProvider({
   const [error, setError] = React.useState<string | null>(null)
   const [corsBlocked, setCorsBlocked] = React.useState(false)
   const [isInitializing, setIsInitializing] = React.useState(true)
+  const [isTested, setIsTested] = React.useState(false)
 
   const testUrlRef = React.useRef<string | null>(null)
 
@@ -115,6 +118,7 @@ export function ConnectionProvider({
       setStatus("testing")
       setError(null)
       setCorsBlocked(false)
+      setIsTested(false)
       testUrlRef.current = url
 
       const result = await testBackendConnection(url)
@@ -123,11 +127,13 @@ export function ConnectionProvider({
       if (testUrlRef.current !== url) return result
 
       if (result.ok) {
-        setStatus("connected")
+        // Mark as tested but DON'T set "connected" — only connect() does that
+        setIsTested(true)
         setError(null)
         setCorsBlocked(false)
       } else {
         setStatus("failed")
+        setIsTested(false)
         setError(result.error ?? "Connection failed")
         setCorsBlocked(result.corsBlocked ?? false)
       }
@@ -145,6 +151,7 @@ export function ConnectionProvider({
       setRuntimeBackendUrl(normalized)
       saveBackendUrl(normalized)
       setStatus("connected")
+      setIsTested(false)
       setError(null)
       setCorsBlocked(false)
       void queryClient.invalidateQueries()
@@ -278,6 +285,7 @@ export function ConnectionProvider({
       corsBlocked,
       isInitializing,
       isConnected,
+      isTested,
       testConnection,
       connect,
       disconnect,
@@ -294,6 +302,7 @@ export function ConnectionProvider({
       corsBlocked,
       isInitializing,
       isConnected,
+      isTested,
       testConnection,
       connect,
       disconnect,

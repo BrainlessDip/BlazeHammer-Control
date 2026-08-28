@@ -49,6 +49,7 @@ export function ConnectionModal({
     status,
     error,
     corsBlocked,
+    isTested,
     testConnection,
     connect,
     disconnect,
@@ -85,11 +86,11 @@ export function ConnectionModal({
   }, [inputValue, testConnection])
 
   const handleConnect = React.useCallback(() => {
-    if (testResult?.ok) {
+    if (isTested) {
       connect(inputValue)
       onOpenChange(false)
     }
-  }, [testResult, inputValue, connect, onOpenChange])
+  }, [isTested, inputValue, connect, onOpenChange])
 
   const handleCopyOrigin = React.useCallback(async () => {
     try {
@@ -121,12 +122,14 @@ export function ConnectionModal({
       if (e.key === "Enter" && !isTesting) {
         if (status === "connected") {
           onOpenChange(false)
+        } else if (isTested) {
+          handleConnect()
         } else {
           void handleTest()
         }
       }
     },
-    [isTesting, status, handleTest, onOpenChange]
+    [isTesting, status, isTested, handleTest, handleConnect, onOpenChange]
   )
 
   return (
@@ -192,6 +195,7 @@ export function ConnectionModal({
           displayUrl={displayUrl}
           testResult={testResult}
           isTesting={isTesting}
+          isTested={isTested}
           onCopyOrigin={handleCopyOrigin}
           copied={copied}
         />
@@ -235,7 +239,7 @@ export function ConnectionModal({
           ) : (
             <Button
               onClick={handleConnect}
-              disabled={!testResult?.ok}
+              disabled={!isTested}
               className="gap-2"
             >
               <PlugIcon className="size-4" />
@@ -259,6 +263,7 @@ function ConnectionStatusDisplay({
   displayUrl,
   testResult,
   isTesting,
+  isTested,
   onCopyOrigin,
   copied,
 }: {
@@ -268,6 +273,7 @@ function ConnectionStatusDisplay({
   displayUrl: string
   testResult: { ok: boolean; version?: string } | null
   isTesting: boolean
+  isTested: boolean
   onCopyOrigin: () => void
   copied: boolean
 }) {
@@ -280,7 +286,7 @@ function ConnectionStatusDisplay({
     )
   }
 
-  if (status === "connected" && testResult?.ok) {
+  if (isTested && testResult?.ok) {
     return (
       <div className="flex flex-col gap-3 rounded-md border border-success/30 bg-success/5 p-3">
         <div className="flex items-center gap-2 text-sm font-medium text-success">

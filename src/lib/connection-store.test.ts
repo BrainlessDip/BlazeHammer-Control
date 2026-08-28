@@ -40,9 +40,15 @@ describe("normalizeBackendUrl", () => {
     )
   })
 
-  it("normalizes http:// to always use http:// protocol", () => {
+  it("preserves https:// protocol", () => {
     expect(normalizeBackendUrl("https://example.com")).toBe(
-      "http://example.com",
+      "https://example.com",
+    )
+  })
+
+  it("strips default https port 443", () => {
+    expect(normalizeBackendUrl("https://localhost:443")).toBe(
+      "https://localhost",
     )
   })
 
