@@ -28,6 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
+import { getBodyTypeOption } from "@/lib/body-types"
 import { Switch } from "@/components/ui/switch"
 import { ConfigSkeleton } from "@/components/common/loading-skeletons"
 import { ErrorState } from "@/components/common/states"
@@ -375,8 +376,8 @@ export function Configuration() {
                 hint="Read-only — override per run"
               />
               <ReadOnlyField
-                label="Post type"
-                value={config?.post_type || "—"}
+                label="Body type"
+                value={getBodyTypeOption(config?.post_type).label}
               />
             </div>
           </Card>

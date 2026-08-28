@@ -7,8 +7,6 @@ import { qk } from "@/lib/query-keys"
 import type { QueryClient } from "@tanstack/react-query"
 import type { WsEvent } from "@/types/ws"
 
-const LOG_BUFFER_CAP = 200
-
 export function normalizeLogEntries(payload: unknown): NormalizedLogEntry[] {
   if (Array.isArray(payload)) {
     return (payload as ResponseSnapshot[]).map(normalizeSnapshot)
@@ -96,7 +94,7 @@ export function appendProvisionalLog(
     if (prev.some((existing) => existing.index === entry.index)) {
       return prev
     }
-    return [...prev, entry].slice(-LOG_BUFFER_CAP)
+    return [...prev, entry]
   })
 }
 

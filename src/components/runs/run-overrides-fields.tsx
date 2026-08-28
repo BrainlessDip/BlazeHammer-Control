@@ -10,11 +10,13 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
+import { BodyTypeSelector } from "@/components/body/body-type-selector"
 import { useProfiles } from "@/features/profiles/hooks"
 import {
   HTTP_METHODS,
   type RunFormInputs,
 } from "@/features/runs/run-form"
+import type { PostType } from "@/lib/body-types"
 import { cn } from "@/lib/utils"
 
 const NONE_SENTINEL = "__none__"
@@ -115,14 +117,14 @@ export function RunOverridesFields({
             </Select>
           </Field>
           <Field
-            label="Post type"
+            label="Body type"
             htmlFor="run-post-type"
             error={errors.post_type?.message}
           >
-            <Input
+            <BodyTypeSelector
               id="run-post-type"
-              placeholder="json"
-              {...form.register("post_type")}
+              value={(form.watch("post_type") as PostType) || "json"}
+              onChange={(v) => form.setValue("post_type", v)}
             />
           </Field>
         </div>

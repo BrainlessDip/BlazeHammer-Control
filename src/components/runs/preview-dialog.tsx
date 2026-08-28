@@ -23,8 +23,8 @@ import { useRunForm } from "@/components/runs/use-run-form"
 import { usePreview } from "@/features/preview/hooks"
 import { buildRunRequestBody } from "@/features/runs/run-form"
 import type { PreviewPlan, PreviewResponse } from "@/types/api"
-import { JsonViewer } from "@/components/common/json-viewer"
-import { CopyButton } from "@/components/common/copy-button"
+import { JsonBlock } from "@/components/common/json-block"
+import { RequestBodyViewer } from "@/components/body/request-body-viewer"
 import { Badge } from "@/components/ui/badge"
 import { ChevronDownIcon, ChevronUpIcon } from "lucide-react"
 
@@ -62,9 +62,15 @@ function PlanCard({
           {plan.url}
         </span>
         {expanded ? (
-          <ChevronUpIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden="true"/>
+          <ChevronUpIcon
+            className="size-4 shrink-0 text-muted-foreground"
+            aria-hidden="true"
+          />
         ) : (
-          <ChevronDownIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden="true"/>
+          <ChevronDownIcon
+            className="size-4 shrink-0 text-muted-foreground"
+            aria-hidden="true"
+          />
         )}
       </button>
 
@@ -74,17 +80,12 @@ function PlanCard({
             <span className="font-mono text-[11px] tracking-widest text-muted-foreground uppercase">
               Headers
             </span>
-            <CopyButton
-              value={JSON.stringify(plan.headers ?? {}, null, 2)}
-              label="Copy"
-              className="h-6 px-2 text-[11px]"
-            />
           </div>
-          <JsonViewer value={plan.headers} maxHeightClass="max-h-48" />
+          <JsonBlock value={plan.headers} maxHeightClass="max-h-48" />
           <span className="mt-1 font-mono text-[11px] tracking-widest text-muted-foreground uppercase">
             Body
           </span>
-          <JsonViewer value={plan.body} maxHeightClass="max-h-64" />
+          <RequestBodyViewer body={plan.body} postType={plan.post_type} />
         </div>
       )}
     </div>
@@ -115,7 +116,10 @@ export function PreviewDialog({ open, onOpenChange }: PreviewDialogProps) {
   const plans = result?.plans ?? []
 
   return (
-    <Dialog open={open} onOpenChange={(next) => !preview.isPending && handleOpenChange(next)}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => !preview.isPending && handleOpenChange(next)}
+    >
       <DialogContent className="flex max-h-[90dvh] flex-col gap-0 overflow-hidden sm:max-w-3xl">
         <DialogHeader className="px-6 pt-6">
           <DialogTitle>Preview requests</DialogTitle>
@@ -154,7 +158,10 @@ export function PreviewDialog({ open, onOpenChange }: PreviewDialogProps) {
                     </SelectContent>
                   </Select>
                 </div>
-                <Button onClick={() => void submit()} disabled={preview.isPending}>
+                <Button
+                  onClick={() => void submit()}
+                  disabled={preview.isPending}
+                >
                   {preview.isPending ? "Generating…" : "Generate"}
                 </Button>
                 {plans.length > 1 && (

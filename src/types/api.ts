@@ -162,6 +162,7 @@ export interface SaveConfigRequest {
   concurrency?: number | null
   delay?: number | null
   timeout?: number | null
+  post_type?: string | null
   faker_locale?: string | null
 }
 
@@ -286,6 +287,7 @@ export interface PreviewPlan {
   method: string
   headers: Record<string, unknown> | null
   body: Record<string, unknown> | null
+  post_type?: string | null
 }
 
 export interface PreviewResponse {

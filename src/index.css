@@ -140,6 +140,81 @@
     }
 }
 
+/* ---------------------------------------------------------------------------
+   Global custom scrollbar — compact, minimal, VS Code-inspired
+   Works on Chromium/Safari. Firefox uses scrollbar-width/color below.
+   --------------------------------------------------------------------------- */
+
+:root {
+  --scrollbar-track: transparent;
+  --scrollbar-thumb: oklch(0 0 0 / 15%);
+  --scrollbar-thumb-hover: oklch(0 0 0 / 28%);
+  --scrollbar-size: 8px;
+  --scrollbar-radius: 100px;
+}
+
+.dark {
+  --scrollbar-track: transparent;
+  --scrollbar-thumb: oklch(1 0 0 / 15%);
+  --scrollbar-thumb-hover: oklch(1 0 0 / 28%);
+}
+
+/* WebKit / Blink (Chrome, Edge, Safari) */
+*::-webkit-scrollbar {
+  width: var(--scrollbar-size);
+  height: var(--scrollbar-size);
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: var(--scrollbar-radius);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+  border: 1px solid transparent;
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *::-webkit-scrollbar-thumb {
+    transition: none;
+  }
+}
+
+/* Monaco editor scrollbar overrides — keep compact */
+.monaco-editor .scrollbar {
+  --vertical-scrollbar-size: 8px !important;
+  --horizontal-scrollbar-size: 8px !important;
+}
+
+/* Monaco: hide deprecated scrollbar DOM elements */
+.monaco-editor .scrollbar.vertical,
+.monaco-editor .scrollbar.horizontal {
+  opacity: 0;
+}
+
+.monaco-editor .scrollbar:hover {
+  opacity: 1;
+}
+
 /* Monaco placeholder decorations (editor workbench) */
 .blaze-placeholder-token {
   color: var(--color-primary);

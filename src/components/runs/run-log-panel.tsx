@@ -1,7 +1,8 @@
 import * as React from "react"
-import { CircleXIcon } from "lucide-react"
+import { CircleXIcon, GripVerticalIcon } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
+import { RequestBodyViewer } from "@/components/body/request-body-viewer"
 import {
   Sheet,
   SheetContent,
@@ -24,10 +25,16 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { EmptyState } from "@/components/common/states"
+import { JsonBlock } from "@/components/common/json-block"
 import { JsonViewer } from "@/components/common/json-viewer"
 import { useRunLog } from "@/features/runs/hooks"
 import type { NormalizedLogEntry } from "@/types/api"
 import { formatInt, formatMs, formatTimestamp } from "@/lib/format"
+
+const SHEET_WIDTH_KEY = "blaze-hammer:request-sheet-width"
+const DEFAULT_SHEET_WIDTH = 480
+const MIN_SHEET_WIDTH = 320
+const MAX_SHEET_WIDTH = 900
 
 type LogFilter = "all" | "success" | "errors"
 
@@ -60,10 +67,76 @@ function RequestDetailsSheet({
   method?: string
   onClose: () => void
 }) {
+  const [sheetWidth, setSheetWidth] = React.useState(() => {
+    try {
+      const saved = localStorage.getItem(SHEET_WIDTH_KEY)
+      return saved ? Number(saved) : DEFAULT_SHEET_WIDTH
+    } catch {
+      return DEFAULT_SHEET_WIDTH
+    }
+  })
+  const dragging = React.useRef(false)
+  const startX = React.useRef(0)
+  const startWidth = React.useRef(0)
+
+  const handleMouseDown = React.useCallback(
+    (e: React.MouseEvent) => {
+      dragging.current = true
+      startX.current = e.clientX
+      startWidth.current = sheetWidth
+      e.preventDefault()
+
+      const handleMouseMove = (e: MouseEvent) => {
+        if (!dragging.current) return
+        const delta = startX.current - e.clientX
+        const newWidth = Math.min(
+          MAX_SHEET_WIDTH,
+          Math.max(MIN_SHEET_WIDTH, startWidth.current + delta)
+        )
+        setSheetWidth(newWidth)
+      }
+
+      const handleMouseUp = () => {
+        dragging.current = false
+        document.removeEventListener("mousemove", handleMouseMove)
+        document.removeEventListener("mouseup", handleMouseUp)
+        try {
+          localStorage.setItem(SHEET_WIDTH_KEY, String(sheetWidth))
+        } catch {
+          // Ignore
+        }
+      }
+
+      document.addEventListener("mousemove", handleMouseMove)
+      document.addEventListener("mouseup", handleMouseUp)
+    },
+    [sheetWidth]
+  )
+
+  // Persist width on change
+  React.useEffect(() => {
+    try {
+      localStorage.setItem(SHEET_WIDTH_KEY, String(sheetWidth))
+    } catch {
+      // Ignore
+    }
+  }, [sheetWidth])
+
   return (
     <Sheet open={!!entry} onOpenChange={(open) => !open && onClose()}>
-      <SheetContent className="flex w-full flex-col gap-4 overflow-y-auto sm:max-w-lg">
-        <SheetHeader>
+      <SheetContent
+        className="flex flex-col gap-4 overflow-y-auto"
+        style={{ width: sheetWidth, maxWidth: sheetWidth }}
+      >
+        {/* Drag handle */}
+        <div
+          onMouseDown={handleMouseDown}
+          className="absolute inset-y-0 left-0 z-10 flex w-1.5 cursor-col-resize items-center justify-center hover:bg-primary/10 active:bg-primary/20"
+        >
+          <GripVerticalIcon className="size-4 text-muted-foreground/50" />
+        </div>
+
+        <SheetHeader className="pl-4">
           <SheetTitle className="font-mono text-base">
             Request #{entry?.index ?? "—"}
           </SheetTitle>
@@ -73,7 +146,7 @@ function RequestDetailsSheet({
         </SheetHeader>
 
         {entry && (
-          <div className="flex min-h-0 flex-col gap-5 pb-6">
+          <div className="flex min-h-0 flex-col gap-5 pb-6 pl-4">
             <section className="grid grid-cols-3 gap-2 font-mono text-xs">
               <div>
                 <p className="text-[10px] tracking-widest text-muted-foreground uppercase">
@@ -115,7 +188,7 @@ function RequestDetailsSheet({
                   extractField(entry.raw, "response_headers") ??
                   extractField(entry.raw, "response_headers")
                 return hdrs ? (
-                  <JsonViewer value={hdrs} maxHeightClass="max-h-56" />
+                  <JsonViewer value={hdrs} maxHeightClass="max-h-72" />
                 ) : (
                   <p className="font-mono text-xs text-muted-foreground">—</p>
                 )
@@ -128,8 +201,9 @@ function RequestDetailsSheet({
               </p>
               {(() => {
                 const body = extractField(entry.raw, "request_body")
-                return body ? (
-                  <JsonViewer value={body} maxHeightClass="max-h-72" />
+                const postType = extractField(entry.raw, "post_type") as string | null | undefined
+                return body !== null && body !== undefined ? (
+                  <RequestBodyViewer body={body} postType={postType} />
                 ) : (
                   <p className="font-mono text-xs text-muted-foreground">—</p>
                 )
@@ -143,9 +217,7 @@ function RequestDetailsSheet({
               {(() => {
                 const excerpt = extractField(entry.raw, "response_body_excerpt")
                 return excerpt ? (
-                  <pre className="max-h-64 overflow-auto rounded-md border bg-muted/40 p-3 font-mono text-xs leading-relaxed whitespace-pre-wrap">
-                    {String(excerpt)}
-                  </pre>
+                  <JsonBlock value={excerpt} maxHeightClass="max-h-64" />
                 ) : (
                   <p className="font-mono text-xs text-muted-foreground">—</p>
                 )

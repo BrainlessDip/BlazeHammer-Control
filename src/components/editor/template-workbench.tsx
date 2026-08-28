@@ -630,7 +630,7 @@ function MonacoPane({
         renderLineHighlight: "line",
         smoothScrolling: true,
         padding: { top: 10, bottom: 10 },
-        scrollbar: { verticalScrollbarSize: 9, horizontalScrollbarSize: 9 },
+        scrollbar: { verticalScrollbarSize: 8, horizontalScrollbarSize: 8 },
         quickSuggestions: { other: false, comments: false, strings: true },
         suggestOnTriggerCharacters: true,
         wordBasedSuggestions: "off",
