@@ -18,11 +18,15 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { EmptyState } from "@/components/common/states"
 import { JsonViewer } from "@/components/common/json-viewer"
 import { useRunLog } from "@/features/runs/hooks"
-import type { RunLogEntry } from "@/types/api"
+import type { NormalizedLogEntry } from "@/types/api"
 import { formatInt, formatMs, formatTimestamp } from "@/lib/format"
 
 type LogFilter = "all" | "success" | "errors"
@@ -40,13 +44,18 @@ function statusTone(status: number): string {
   return status === 0 ? "text-destructive" : "text-foreground"
 }
 
+function extractField(raw: NormalizedLogEntry["raw"], key: string): unknown {
+  const obj = raw as Record<string, unknown>
+  return obj[key]
+}
+
 function RequestDetailsSheet({
   entry,
   target,
   method,
   onClose,
 }: {
-  entry: RunLogEntry | null
+  entry: NormalizedLogEntry | null
   target?: string
   method?: string
   onClose: () => void
@@ -76,15 +85,15 @@ function RequestDetailsSheet({
                 <p className="text-[10px] tracking-widest text-muted-foreground uppercase">
                   Status
                 </p>
-                <span className={statusTone(entry.status)}>
-                  {entry.status || "ERR"}
+                <span className={statusTone(entry.statusCode ?? 0)}>
+                  {entry.statusCode === null ? "—" : entry.statusCode}
                 </span>
               </div>
               <div>
                 <p className="text-[10px] tracking-widest text-muted-foreground uppercase">
                   Latency
                 </p>
-                {formatMs(entry.latency_ms)}
+                {formatMs(entry.latencyMs)}
               </div>
             </section>
 
@@ -99,47 +108,58 @@ function RequestDetailsSheet({
 
             <section>
               <p className="mb-1.5 text-[10px] tracking-widest text-muted-foreground uppercase">
-                Request headers
+                Response Headers
               </p>
-              {entry.request_headers ? (
-                <JsonViewer value={entry.request_headers} maxHeightClass="max-h-56" />
-              ) : (
-                <p className="font-mono text-xs text-muted-foreground">—</p>
-              )}
+              {(() => {
+                const hdrs =
+                  extractField(entry.raw, "response_headers") ??
+                  extractField(entry.raw, "response_headers")
+                return hdrs ? (
+                  <JsonViewer value={hdrs} maxHeightClass="max-h-56" />
+                ) : (
+                  <p className="font-mono text-xs text-muted-foreground">—</p>
+                )
+              })()}
             </section>
 
             <section>
               <p className="mb-1.5 text-[10px] tracking-widest text-muted-foreground uppercase">
-                Request body
+                Request body / Payload
               </p>
-              {entry.request_body ? (
-                <JsonViewer value={entry.request_body} maxHeightClass="max-h-72" />
-              ) : (
-                <p className="font-mono text-xs text-muted-foreground">—</p>
-              )}
+              {(() => {
+                const body = extractField(entry.raw, "request_body")
+                return body ? (
+                  <JsonViewer value={body} maxHeightClass="max-h-72" />
+                ) : (
+                  <p className="font-mono text-xs text-muted-foreground">—</p>
+                )
+              })()}
             </section>
 
             <section>
               <p className="mb-1.5 text-[10px] tracking-widest text-muted-foreground uppercase">
                 Response body (excerpt)
               </p>
-              {entry.response_body_excerpt ? (
-                <pre className="max-h-64 overflow-auto rounded-md border bg-muted/40 p-3 font-mono text-xs leading-relaxed whitespace-pre-wrap">
-                  {entry.response_body_excerpt}
-                </pre>
-              ) : (
-                <p className="font-mono text-xs text-muted-foreground">—</p>
-              )}
+              {(() => {
+                const excerpt = extractField(entry.raw, "response_body_excerpt")
+                return excerpt ? (
+                  <pre className="max-h-64 overflow-auto rounded-md border bg-muted/40 p-3 font-mono text-xs leading-relaxed whitespace-pre-wrap">
+                    {String(excerpt)}
+                  </pre>
+                ) : (
+                  <p className="font-mono text-xs text-muted-foreground">—</p>
+                )
+              })()}
             </section>
 
-            {(entry.error || entry.error_category) && (
+            {(entry.errorCategory || entry.error) && (
               <section
                 role="alert"
                 className="rounded-md border border-destructive/30 bg-destructive/10 p-3"
               >
                 <p className="flex items-center gap-1.5 text-xs font-medium text-destructive">
                   <CircleXIcon className="size-3.5" aria-hidden="true" />
-                  {entry.error_category ?? "Error"}
+                  {entry.errorCategory ?? "Error"}
                 </p>
                 {entry.error && (
                   <p className="mt-1 font-mono text-xs break-all text-destructive/90">
@@ -162,14 +182,20 @@ interface RunLogPanelProps {
   method?: string
 }
 
-/** Live log view backed by GET /api/v1/runs/{id}/log (+ WS appends). */
-export function RunLogPanel({ runId, active, target, method }: RunLogPanelProps) {
+export function RunLogPanel({
+  runId,
+  active,
+  target,
+  method,
+}: RunLogPanelProps) {
   const logQuery = useRunLog(runId, { active })
   const [filter, setFilter] = React.useState<LogFilter>("all")
-  const [selected, setSelected] = React.useState<RunLogEntry | null>(null)
+  const [selected, setSelected] = React.useState<NormalizedLogEntry | null>(
+    null
+  )
 
   const filtered = React.useMemo(() => {
-    const entries = logQuery.data?.entries ?? []
+    const entries = logQuery.data ?? []
     switch (filter) {
       case "success":
         return entries.filter((e) => e.ok)
@@ -183,7 +209,10 @@ export function RunLogPanel({ runId, active, target, method }: RunLogPanelProps)
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <Tabs value={filter} onValueChange={(value) => setFilter(value as LogFilter)}>
+        <Tabs
+          value={filter}
+          onValueChange={(value) => setFilter(value as LogFilter)}
+        >
           <TabsList>
             {FILTERS.map((f) => (
               <TabsTrigger key={f.value} value={f.value}>
@@ -196,7 +225,10 @@ export function RunLogPanel({ runId, active, target, method }: RunLogPanelProps)
         <span className="font-mono text-[11px] text-muted-foreground tabular-nums">
           {formatInt(filtered.length)} entr{filtered.length === 1 ? "y" : "ies"}
           {active && (
-            <Badge variant="outline" className="ml-2 font-mono text-[10px] text-primary">
+            <Badge
+              variant="outline"
+              className="ml-2 font-mono text-[10px] text-primary"
+            >
               LIVE
             </Badge>
           )}
@@ -231,7 +263,7 @@ export function RunLogPanel({ runId, active, target, method }: RunLogPanelProps)
             <TableBody>
               {filtered.map((entry) => (
                 <TableRow
-                  key={`${entry.index}-${entry.ts}`}
+                  key={`${entry.index}-${entry.timestampMs}`}
                   onClick={() => setSelected(entry)}
                   className="cursor-pointer"
                   aria-label={`Request ${entry.index}`}
@@ -240,16 +272,16 @@ export function RunLogPanel({ runId, active, target, method }: RunLogPanelProps)
                     {entry.index}
                   </TableCell>
                   <TableCell className="font-mono text-xs tabular-nums">
-                    {formatTimestamp(entry.ts)}
+                    {formatTimestamp(entry.timestampMs)}
                   </TableCell>
                   <TableCell>
                     <Tooltip>
                       <TooltipTrigger
                         render={
                           <span
-                            className={`font-mono text-xs font-semibold tabular-nums ${statusTone(entry.status)}`}
+                            className={`font-mono text-xs font-semibold tabular-nums ${statusTone(entry.statusCode ?? 0)}`}
                           >
-                            {entry.status || "ERR"}
+                            {entry.statusCode ?? "ERR"}
                           </span>
                         }
                       />
@@ -259,13 +291,16 @@ export function RunLogPanel({ runId, active, target, method }: RunLogPanelProps)
                     </Tooltip>
                   </TableCell>
                   <TableCell className="text-right font-mono text-xs tabular-nums">
-                    {formatMs(entry.latency_ms)}
+                    {formatMs(entry.latencyMs)}
                   </TableCell>
                   <TableCell className="text-right font-mono text-xs tabular-nums">
                     {formatInt(entry.attempts)}
                   </TableCell>
-                  <TableCell className="max-w-[18rem] truncate font-mono text-xs text-destructive" title={entry.error ?? entry.error_category}>
-                    {entry.error_category ?? entry.error ?? ""}
+                  <TableCell
+                    className="max-w-[18rem] truncate font-mono text-xs text-destructive"
+                    title={entry.error ?? entry.errorCategory}
+                  >
+                    {entry.errorCategory ?? entry.error ?? ""}
                   </TableCell>
                 </TableRow>
               ))}

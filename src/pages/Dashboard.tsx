@@ -109,7 +109,7 @@ function ActiveRunCard({ run }: { run: RunWithStats }) {
             Avg latency
           </p>
           <p className="font-mono text-sm tabular-nums">
-            {formatMs(run.stats?.latency_ms?.mean)}
+            {formatMs(run.stats?.latency_ms?.mean ?? run.average_response_time_ms)}
           </p>
         </div>
         <div>
@@ -260,7 +260,7 @@ export function Dashboard() {
             />
             <MetricCard
               label="Avg latency"
-              value={formatMs(stats?.latency_ms?.mean)}
+              value={formatMs(stats?.latency_ms?.mean ?? activeRun?.average_response_time_ms)}
               icon={Clock3}
             />
             <MetricCard

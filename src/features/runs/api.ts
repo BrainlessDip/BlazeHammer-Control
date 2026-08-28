@@ -1,7 +1,7 @@
 import { api } from "@/lib/api"
 import type {
   RunListResponse,
-  RunLogResponse,
+  ResponseSnapshot,
   RunStartRequest,
   RunSummary,
 } from "@/types/api"
@@ -27,9 +27,12 @@ export const runsApi = {
     return api.del<{ ok: boolean }>("/runs")
   },
   log(runId: string, offset: number, signal?: AbortSignal) {
-    return api.get<RunLogResponse>(`/runs/${encodeURIComponent(runId)}/log`, {
-      params: { offset },
-      signal,
-    })
+    return api.get<ResponseSnapshot[]>(
+      `/runs/${encodeURIComponent(runId)}/log`,
+      {
+        params: { offset },
+        signal,
+      }
+    )
   },
 }

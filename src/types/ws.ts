@@ -61,6 +61,11 @@ const requestCompletedFrame = z.object({
   status: optionalNumber,
   latency_ms: optionalNumber,
   error_category: z.string().optional(),
+  response_body_excerpt: z.string().optional(),
+  response_body_truncated: z.boolean().optional(),
+  response_headers: z.string().optional(),
+  request_headers: z.unknown().optional(),
+  request_body: z.unknown().optional(),
 })
 
 const runCompletedFrame = z.object({
@@ -98,17 +103,18 @@ export const knownWsEventSchema = z.union([
 
 export type KnownWsEvent = z.infer<typeof knownWsEventSchema>
 
-export type WsEvent =
-  | KnownWsEvent
-  | { type: string; [key: string]: unknown }
+export type WsEvent = KnownWsEvent | { type: string; [key: string]: unknown }
 
 /** Extracts the LiveStats subset from a flat stats-bearing frame. */
 export function extractLiveStats(frame: Record<string, unknown>): LiveStats {
   return {
-    elapsed_s: typeof frame.elapsed_s === "number" ? frame.elapsed_s : undefined,
+    elapsed_s:
+      typeof frame.elapsed_s === "number" ? frame.elapsed_s : undefined,
     rps: typeof frame.rps === "number" ? frame.rps : undefined,
-    completed: typeof frame.completed === "number" ? frame.completed : undefined,
-    requested: typeof frame.requested === "number" ? frame.requested : undefined,
+    completed:
+      typeof frame.completed === "number" ? frame.completed : undefined,
+    requested:
+      typeof frame.requested === "number" ? frame.requested : undefined,
     success: typeof frame.success === "number" ? frame.success : undefined,
     failed: typeof frame.failed === "number" ? frame.failed : undefined,
     retries: typeof frame.retries === "number" ? frame.retries : undefined,

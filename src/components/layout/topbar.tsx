@@ -24,12 +24,19 @@ import {
 import { Separator } from "@/components/ui/separator"
 import { Button } from "@/components/ui/button"
 import { SidebarTrigger } from "@/components/ui/sidebar"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 import { WebSocketStatus } from "@/components/common/connection-status"
+import { ConnectionModal } from "@/components/connection/connection-modal"
 import { useLogout, useMe, useHealth } from "@/features/auth/hooks"
 import { useTheme } from "@/components/theme-provider"
+import { useConnection } from "@/hooks/use-connection"
 import type { LucideIcon } from "lucide-react"
+import React from "react"
 
 const TITLES: Array<{ match: (path: string) => boolean; title: string }> = [
   { match: (p) => p.startsWith("/dashboard"), title: "Dashboard" },
@@ -176,8 +183,36 @@ function UserMenu() {
   )
 }
 
+function ConnectionIndicator({ onClick }: { onClick: () => void }) {
+  const { displayUrl, isConnected } = useConnection()
+
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <button
+            onClick={onClick}
+            className="inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 font-mono text-xs transition-colors hover:bg-muted"
+            aria-label="Change backend connection"
+          >
+            <span
+              className={`size-1.5 rounded-full ${isConnected ? "bg-success" : "bg-destructive"}`}
+            />
+            <span className="hidden sm:inline">{displayUrl}</span>
+          </button>
+        }
+      />
+      <TooltipContent>
+        {isConnected ? `Connected to ${displayUrl}` : "Disconnected"}
+      </TooltipContent>
+    </Tooltip>
+  )
+}
+
 export function Topbar() {
   const { pathname } = useLocation()
+  const [connectionModalOpen, setConnectionModalOpen] = React.useState(false)
+
   return (
     <header className="flex h-12 shrink-0 items-center gap-2 border-b bg-background px-3 md:px-4">
       <SidebarTrigger aria-label="Toggle sidebar" />
@@ -191,10 +226,16 @@ export function Topbar() {
 
       <div className="ml-auto flex items-center gap-3 md:gap-4">
         <HealthIndicator />
+        <ConnectionIndicator onClick={() => setConnectionModalOpen(true)} />
         <WebSocketStatus className="hidden sm:inline-flex" />
         <WebSocketStatus className="sm:hidden" showLabel={false} />
         <UserMenu />
       </div>
+
+      <ConnectionModal
+        open={connectionModalOpen}
+        onOpenChange={setConnectionModalOpen}
+      />
     </header>
   )
 }

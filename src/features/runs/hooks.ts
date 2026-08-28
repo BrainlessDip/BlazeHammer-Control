@@ -4,6 +4,7 @@ import { toast } from "sonner"
 import { qk } from "@/lib/query-keys"
 import type { RunStartRequest } from "@/types/api"
 import { runsApi } from "./api"
+import { normalizeLogEntries } from "./log-normalize"
 
 const ACTIVE_POLL_MS = 5_000
 
@@ -39,7 +40,8 @@ export function useRun(runId: string) {
 export function useRunLog(runId: string, options: { active?: boolean } = {}) {
   return useQuery({
     queryKey: qk.runLog(runId),
-    queryFn: ({ signal }) => runsApi.log(runId, 0, signal),
+    queryFn: ({ signal }) =>
+      runsApi.log(runId, 0, signal).then(normalizeLogEntries),
     staleTime: 0,
     enabled: !!runId,
     // While a run is active, periodically reconcile the optimistic log

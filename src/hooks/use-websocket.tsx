@@ -14,15 +14,16 @@ import * as React from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 
-import { WS_URL } from "@/app/config"
 import { useMe } from "@/features/auth/hooks"
+import { useConnection } from "@/hooks/use-connection"
 import { redirectToLogin } from "@/lib/auth-redirect"
 import { qk } from "@/lib/query-keys"
+import { appendProvisionalLog } from "@/features/runs/log-normalize"
 import {
   WebSocketService,
   type WsConnectionState,
 } from "@/lib/websocket"
-import type { RunLogEntry, RunLogResponse, RunWithStats } from "@/types/api"
+import type { RunWithStats } from "@/types/api"
 import {
   extractLiveStats,
   type WsEvent,
@@ -41,39 +42,8 @@ const WebSocketContext = React.createContext<WebSocketContextValue | null>(
   null
 )
 
-const LOG_BUFFER_CAP = 200
-
 function asString(value: unknown): string | undefined {
   return typeof value === "string" ? value : undefined
-}
-
-/** Appends a provisional log entry from request.completed (dedup by index). */
-function appendProvisionalLog(
-  queryClient: ReturnType<typeof useQueryClient>,
-  event: Extract<WsEvent, { type: "request.completed" }>
-) {
-  const runId = asString(event.run_id)
-  if (!runId || typeof event.index !== "number") return
-
-  const entry: RunLogEntry = {
-    index: event.index,
-    ok: event.ok ?? false,
-    status: event.status ?? 0,
-    latency_ms: event.latency_ms ?? 0,
-    attempts: 1,
-    ts: Date.now(),
-    ...(typeof event.error_category === "string"
-      ? { error_category: event.error_category }
-      : {}),
-  }
-
-  queryClient.setQueryData<RunLogResponse>(qk.runLog(runId), (prev) => {
-    if (!prev) return prev // Not fetched yet; polling reconciles later.
-    if (prev.entries.some((existing) => existing.index === entry.index)) {
-      return prev
-    }
-    return { entries: [...prev.entries, entry].slice(-LOG_BUFFER_CAP) }
-  })
 }
 
 /** Bridges WS events into TanStack Query caches. Targeted, no global refetch. */
@@ -178,16 +148,28 @@ function applyWsEvent(
 export function WebSocketProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient()
   const me = useMe()
+  const { wsUrl } = useConnection()
   const authenticated = me.isSuccess
 
   const serviceRef = React.useRef<WebSocketService | null>(null)
   const listenersRef = React.useRef(new Set<WsListener>())
   const stateRef = React.useRef<WsConnectionState>("idle")
   const everConnectedRef = React.useRef(false)
+  const wsUrlRef = React.useRef(wsUrl)
   const [status, setStatus] = React.useState<WsConnectionState>("idle")
 
+  // Recreate WebSocket service when wsUrl changes
   React.useEffect(() => {
-    const service = new WebSocketService(WS_URL, {
+    // Skip if URL hasn't actually changed (avoids unnecessary disconnect)
+    if (wsUrlRef.current === wsUrl && serviceRef.current) return
+    wsUrlRef.current = wsUrl
+
+    // Disconnect existing service
+    if (serviceRef.current) {
+      serviceRef.current.disconnect()
+    }
+
+    const service = new WebSocketService(wsUrl, {
       onEvent: (event) => {
         applyWsEvent(queryClient, event)
         for (const listener of listenersRef.current) {
@@ -219,21 +201,17 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
       },
     })
     serviceRef.current = service
+
+    // If already authenticated, connect immediately
+    if (authenticated) {
+      service.connect()
+    }
+
     return () => {
       service.disconnect()
       serviceRef.current = null
     }
-  }, [queryClient])
-
-  React.useEffect(() => {
-    const service = serviceRef.current
-    if (!service) return
-    if (authenticated) {
-      service.connect()
-    } else {
-      service.disconnect()
-    }
-  }, [authenticated])
+  }, [wsUrl, queryClient, authenticated])
 
   const reconnect = React.useCallback(() => {
     serviceRef.current?.reconnect()

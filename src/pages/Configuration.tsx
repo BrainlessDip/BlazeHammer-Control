@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react"
 import { Link } from "react-router-dom"
-import { useForm } from "react-hook-form"
+import { Controller, useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { FileJson, Info, Save, ScrollText, ShieldCheck } from "lucide-react"
@@ -20,6 +20,13 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { Switch } from "@/components/ui/switch"
 import { ConfigSkeleton } from "@/components/common/loading-skeletons"
@@ -280,10 +287,25 @@ export function Configuration() {
                 htmlFor="cfg-method"
                 error={form.formState.errors.method?.message}
               >
-                <Input
-                  id="cfg-method"
-                  {...form.register("method")}
-                  aria-invalid={!!form.formState.errors.method}
+                <Controller
+                  control={form.control}
+                  name="method"
+                  render={({ field }) => (
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger id="cfg-method" className="w-full">
+                        <SelectValue placeholder="Select method" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="GET">GET</SelectItem>
+                        <SelectItem value="POST">POST</SelectItem>
+                        <SelectItem value="PUT">PUT</SelectItem>
+                        <SelectItem value="PATCH">PATCH</SelectItem>
+                        <SelectItem value="DELETE">DELETE</SelectItem>
+                        <SelectItem value="HEAD">HEAD</SelectItem>
+                        <SelectItem value="OPTIONS">OPTIONS</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
                 />
               </Field>
             </div>
@@ -404,10 +426,6 @@ export function Configuration() {
               >
                 <ScrollText aria-hidden="true" /> Edit headers template
               </Button>
-              <span className="font-mono text-[11px] text-muted-foreground">
-                Templates are read-only here; saving is managed via project
-                files.
-              </span>
             </div>
           </Card>
 

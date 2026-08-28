@@ -215,6 +215,11 @@ export interface RunSummary {
   success: number
   failed: number
   error: string | null
+  /** Present on newer backends (v1.6+). */
+  average_response_time_ms?: number | null
+  min_response_time_ms?: number | null
+  max_response_time_ms?: number | null
+  status_codes?: Record<string, number>
 }
 
 export type RunStatus = "running" | "completed" | "stopped" | "failed" | "error"
@@ -223,8 +228,28 @@ export interface RunListResponse {
   runs: RunSummary[]
 }
 
-/** Per-request entry from GET /api/v1/runs/{run_id}/log (already redacted). */
-export interface RunLogEntry {
+/** Per-request response snapshot from GET /api/v1/runs/{run_id}/log (v1.6+).
+ *  Backend returns a bare array, newest first (ring buffer). */
+export interface ResponseSnapshot {
+  request_index: number
+  status_code?: number | null
+  response_time_ms?: number | null
+  content_type?: string | null
+  body_size?: number
+  response_body_excerpt?: string | null
+  response_body_truncated?: boolean
+  headers?: Record<string, string> | null
+  error?: string | null
+  ok: boolean
+  attempts?: number
+  timestamp_ms?: number | null
+  error_category?: string | null
+  request_headers?: Record<string, unknown> | null
+  request_body?: Record<string, unknown> | null
+}
+
+/** Legacy log entry shape emitted by older backends / WS provisional frames. */
+export interface LegacyRunLogEntry {
   index: number
   ok: boolean
   status: number
@@ -238,8 +263,17 @@ export interface RunLogEntry {
   response_body_excerpt?: string
 }
 
-export interface RunLogResponse {
-  entries: RunLogEntry[]
+/** Normalized log entry used by all UI components. */
+export interface NormalizedLogEntry {
+  index: number
+  ok: boolean
+  statusCode: number | null
+  latencyMs: number | null
+  attempts: number
+  timestampMs: number | null
+  errorCategory?: string
+  error?: string
+  raw: ResponseSnapshot | LegacyRunLogEntry
 }
 
 // ---------------------------------------------------------------------------

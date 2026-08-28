@@ -148,7 +148,7 @@ export function RunDetails() {
         />
         <MetricCard
           label="Avg latency"
-          value={formatMs(run.stats?.latency_ms?.mean)}
+          value={formatMs(run.stats?.latency_ms?.mean ?? run.average_response_time_ms)}
           sub={
             run.stats && !isRunning
               ? `p95 ${formatMs(run.stats.latency_ms?.p95)}`
