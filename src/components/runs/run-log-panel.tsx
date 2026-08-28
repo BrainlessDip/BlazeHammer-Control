@@ -45,7 +45,7 @@ function statusTone(status: number): string {
 }
 
 function extractField(raw: NormalizedLogEntry["raw"], key: string): unknown {
-  const obj = raw as Record<string, unknown>
+  const obj = raw as unknown as Record<string, unknown>
   return obj[key]
 }
 
