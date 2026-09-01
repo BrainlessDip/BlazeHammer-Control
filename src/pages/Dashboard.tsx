@@ -167,8 +167,8 @@ export function Dashboard() {
 
   const runs = useMemo(() => runsQuery.data?.runs ?? [], [runsQuery.data])
 
-  const activeRun = useMemo<RunWithStats | null>(
-    () => runs.find((run) => run.status === "running") ?? null,
+  const activeRuns = useMemo<RunWithStats[]>(
+    () => runs.filter((run) => run.status === "running"),
     [runs]
   )
 
@@ -186,7 +186,25 @@ export function Dashboard() {
     return { completed, requested, success, failed }
   }, [runs])
 
-  const stats = activeRun?.stats
+  const combinedStats = useMemo(() => {
+    if (activeRuns.length === 0) return null
+    let totalRps = 0
+    let weightedLatency = 0
+    let totalWeight = 0
+    for (const run of activeRuns) {
+      const s = run.stats
+      if (s?.rps != null) totalRps += s.rps
+      if (s?.latency_ms?.mean != null) {
+        const w = s.completed ?? run.completed ?? 0
+        weightedLatency += s.latency_ms.mean * w
+        totalWeight += w
+      }
+    }
+    return {
+      rps: totalRps,
+      latencyMs: totalWeight > 0 ? weightedLatency / totalWeight : null,
+    }
+  }, [activeRuns])
 
   return (
     <div className="flex min-h-svh flex-col gap-4 pb-6 md:min-h-0 md:pb-0">
@@ -254,20 +272,20 @@ export function Dashboard() {
             <MetricCard
               label="Requests/sec"
               value={
-                stats?.rps !== undefined ? stats.rps.toFixed(1) : "—"
+                combinedStats?.rps != null ? combinedStats.rps.toFixed(1) : "—"
               }
               icon={GaugeCircle}
             />
             <MetricCard
               label="Avg latency"
-              value={formatMs(stats?.latency_ms?.mean ?? activeRun?.average_response_time_ms)}
+              value={formatMs(combinedStats?.latencyMs)}
               icon={Clock3}
             />
             <MetricCard
-              label="Active run"
-              value={activeRun ? "1" : "0"}
+              label="Active runs"
+              value={String(activeRuns.length)}
               sub={
-                activeRun ? (
+                activeRuns.length > 0 ? (
                   <Link
                     to="/runs"
                     className="underline underline-offset-2 hover:text-foreground"
@@ -284,8 +302,12 @@ export function Dashboard() {
         )}
       </div>
 
-      {activeRun ? (
-        <ActiveRunCard run={activeRun} />
+      {activeRuns.length > 0 ? (
+        <div className="flex flex-col gap-4">
+          {activeRuns.map((run) => (
+            <ActiveRunCard key={run.run_id} run={run} />
+          ))}
+        </div>
       ) : runsQuery.isPending ? (
         <Skeleton className="h-44 w-full" />
       ) : (

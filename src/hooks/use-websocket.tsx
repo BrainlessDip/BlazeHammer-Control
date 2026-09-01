@@ -23,7 +23,12 @@ import {
   WebSocketService,
   type WsConnectionState,
 } from "@/lib/websocket"
-import type { RunWithStats } from "@/types/api"
+import type {
+  LiveStats,
+  RunListResponse,
+  RunSummary,
+  RunWithStats,
+} from "@/types/api"
 import {
   extractLiveStats,
   type WsEvent,
@@ -44,6 +49,39 @@ const WebSocketContext = React.createContext<WebSocketContextValue | null>(
 
 function asString(value: unknown): string | undefined {
   return typeof value === "string" ? value : undefined
+}
+
+/**
+ * Maps live stats counters onto the top-level RunSummary fields that list
+ * consumers (Runs table, Dashboard totals) render directly.
+ */
+function counterPatch(stats: LiveStats): Partial<RunSummary> {
+  const patch: Partial<RunSummary> = {}
+  if (typeof stats.completed === "number") patch.completed = stats.completed
+  if (typeof stats.requested === "number") patch.requested = stats.requested
+  if (typeof stats.success === "number") patch.success = stats.success
+  if (typeof stats.failed === "number") patch.failed = stats.failed
+  return patch
+}
+
+/**
+ * Immutably patches a single run entry inside the runs-list cache so list
+ * consumers (Dashboard, Runs) react immediately to live WS updates.
+ */
+function patchRunInList(
+  queryClient: ReturnType<typeof useQueryClient>,
+  runId: string,
+  patch: Partial<RunWithStats>
+) {
+  queryClient.setQueryData<RunListResponse>(qk.runs, (data) => {
+    if (!data || !data.runs.some((run) => run.run_id === runId)) return data
+    return {
+      ...data,
+      runs: data.runs.map((run) =>
+        run.run_id === runId ? { ...run, ...patch } : run
+      ),
+    }
+  })
 }
 
 /** Bridges WS events into TanStack Query caches. Targeted, no global refetch. */
@@ -76,6 +114,7 @@ function applyWsEvent(
       queryClient.setQueryData<RunWithStats>(qk.run(runId), (prev) =>
         prev ? { ...prev, stats } : prev
       )
+      patchRunInList(queryClient, runId, { ...counterPatch(stats), stats })
       break
     }
 
@@ -97,6 +136,7 @@ function applyWsEvent(
         queryClient.setQueryData<RunWithStats>(qk.run(runId), (prev) =>
           prev ? { ...prev, status, stats } : prev
         )
+        patchRunInList(queryClient, runId, { ...counterPatch(stats), status, stats })
         void queryClient.invalidateQueries({ queryKey: qk.run(runId) })
         void queryClient.invalidateQueries({ queryKey: qk.runLog(runId) })
       }
@@ -110,6 +150,10 @@ function applyWsEvent(
         queryClient.setQueryData<RunWithStats>(qk.run(runId), (prev) =>
           prev ? { ...prev, status: "error", error: message ?? prev.error } : prev
         )
+        patchRunInList(queryClient, runId, {
+          status: "error",
+          error: message ?? null,
+        })
         void queryClient.invalidateQueries({ queryKey: qk.runLog(runId) })
       }
       void queryClient.invalidateQueries({ queryKey: qk.runs })
